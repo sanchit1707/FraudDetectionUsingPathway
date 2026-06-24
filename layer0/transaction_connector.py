@@ -3,9 +3,7 @@ from config import Config
 
 def get_transaction_stream(mode: str = "demo") -> pw.Table:
     """
-    Module L0-1: Transaction Connector
     Reads streaming real-time mock data from CSV or live topics from Redpanda.
-    Outputs a highly uniform schema to ensure downstream layers decouple cleanly.
     """
     
     schema = pw.schema_from_dict({
@@ -27,11 +25,10 @@ def get_transaction_stream(mode: str = "demo") -> pw.Table:
     if mode == "demo":
         print(f"🔄 [L0-1] Replaying Compact Stream From: {Config.PAYSIM_PATH}")
         
-        # Uses standard replay to pump data at an exact, fixed rows-per-second velocity
         return pw.demo.replay_csv(
             Config.PAYSIM_PATH,
             schema=schema,
-            input_rate=Config.REPLAY_RATE  # Changed parameter name to input_rate
+            input_rate=Config.REPLAY_RATE  
         )
         
     elif mode == "prod":
