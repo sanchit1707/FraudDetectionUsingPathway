@@ -1,0 +1,3 @@
+merchant_id,risk_reason
+M058,high_chargebacks
+M999,known_scam_wallet
