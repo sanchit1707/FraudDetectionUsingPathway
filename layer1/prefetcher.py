@@ -23,10 +23,6 @@ def get_city_lon(location: str) -> float:
     return CITY_COORDINATES.get(location, (0.0, 0.0))[1]
 
 def build_enriched_stream(mode: str = "demo") -> pw.Table:
-    """
-    Step 7: Complete Prefetcher Engine Module
-    Successfully maps, joins, and secures all transaction and profile metadata.
-    """
     txn_stream = get_transaction_stream(mode=mode)
     profile_table = get_customer_profiles()
     
@@ -45,9 +41,7 @@ def build_enriched_stream(mode: str = "demo") -> pw.Table:
         txn_id=pw.left.TransactionID,
         account_id=pw.left.AccountID,
         amount=pw.left.TransactionAmount,
-        location_city=pw.left.Location,
-        
-        # FIX: Extract with_columns mutations safely using bracket strings off pw.left
+
         txn_lat=pw.left["txn_lat"],
         txn_lon=pw.left["txn_lon"],
         
