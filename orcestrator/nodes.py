@@ -104,7 +104,7 @@ async def action_gateway_node(
     }
 
 async def fallback_node(state:OrchestratorState)->dict:
-    amount=state.get("amount".0):
+    amount=state.get("amount",0)
     bitmask=state.get("bitmask",0)
 
     if amount>5000 or bitmask>0:
