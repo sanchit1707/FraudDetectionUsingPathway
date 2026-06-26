@@ -1,0 +1,35 @@
+# FlashGuard Agent 6 – Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ── Web Framework ─────────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+
+# ── Kafka ─────────────────────────────────────────────────────────────────────
+aiokafka
+
+# ── Redis ─────────────────────────────────────────────────────────────────────
+redis[asyncio]
+
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+asyncpg
+
+# ── Prometheus ────────────────────────────────────────────────────────────────
+prometheus-client
+
+# ── OpenTelemetry Core ────────────────────────────────────────────────────────
+opentelemetry-sdk
+opentelemetry-api
+
+# ── OpenTelemetry Exporters ───────────────────────────────────────────────────
+opentelemetry-exporter-otlp-proto-grpc
+
+# ── OpenTelemetry Instrumentation ─────────────────────────────────────────────
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-asyncpg
+opentelemetry-instrumentation-redis
+
+# ── Serialisation ─────────────────────────────────────────────────────────────
+orjson
