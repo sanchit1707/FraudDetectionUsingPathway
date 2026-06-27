@@ -6,20 +6,24 @@ def get_transaction_stream(mode: str = "demo") -> pw.Table:
     Reads streaming real-time mock data from CSV or live topics from Redpanda.
     """
     
+    # FIX: Updated schema to exactly match ieee_transactions.csv
     schema = pw.schema_from_dict({
-        "txn_id": str,
-        "customer_id": str,
-        "amount": float,
-        "merchant": str,
-        "merchant_cat": str,
-        "card_pan": str,      
-        "device_id": str,
-        "ip_address": str,
-        "lat": float,
-        "lon": float,
-        "timestamp": int,     
-        "card_type": str,
-        "country": str
+        "TransactionID": str,
+        "AccountID": str,
+        "TransactionAmount": float,
+        "TransactionDate": str,
+        "TransactionType": str,
+        "Location": str,
+        "DeviceID": str,
+        "IP Address": str,
+        "MerchantID": str,
+        "Channel": str,
+        "CustomerAge": int,
+        "CustomerOccupation": str,
+        "TransactionDuration": int,
+        "LoginAttempts": int,
+        "AccountBalance": float,
+        "PreviousTransactionDate": str
     })
 
     if mode == "demo":
@@ -32,7 +36,7 @@ def get_transaction_stream(mode: str = "demo") -> pw.Table:
         )
         
     elif mode == "prod":
-        return pw.io.kafka.read(
+        return pw.io.kafka.read(#type: ignore
             rdconfigs={
                 "bootstrap.servers": Config.KAFKA_HOST,
                 "group.id": "layer0_txn_connector",

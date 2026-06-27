@@ -9,7 +9,7 @@ from config import Config
 def get_customer_profiles() -> pw.Table:
     schema = pw.schema_from_dict({
         "customer_id": str,
-        "avg_spande_30d": float,
+        "avg_spend_30d": float,
         "usual_merchants": str,
         "known_devices": str,
         "home_city": str,

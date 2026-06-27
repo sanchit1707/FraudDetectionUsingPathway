@@ -1,6 +1,6 @@
 import pathway as pw
-from layer0_sources.transaction_connector import get_transaction_stream
-from layer0_sources.customer_profile_loader import get_customer_profiles
+from layer0.transaction_connector import get_transaction_stream
+from layer0.profile_loader import get_customer_profiles
 
 # Global Geolocation Dictionary mapping dataset cities to explicit coordinates
 CITY_COORDINATES = {

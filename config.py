@@ -5,8 +5,8 @@ class Config:
     # Points directly to the compact dataset we just built
     PAYSIM_PATH = "data/ieee_transactions.csv" 
     
-    PROFILES_PATH = "data/customers.csv"
-    SANCTIONS_PATH = "data/sanctions.csv"
+    PROFILES_PATH = "data/customer_profiles.csv"
+    SANCTIONS_PATH = "data/watchlist.csv"
     POLICY_DOCS_PATH = "data/policy_docs/"
     
     # 2. Performance Tuning & Simulators
