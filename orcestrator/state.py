@@ -1,32 +1,31 @@
-from langgraph.graph import StateGraph,END
-from langgraph.graph.message import add_messages
-from state import OrchetratorState
-from orcestrator.nodes import (watchdog_node,parallel_scoring_model,action_gateway_node,fallback_node)
+from typing import TypedDict,Optional,List
 
-def building_flow_graph()->StateGraph:
-    graph=StateGraph(OrchetratorState)
-    graph.add_node("watchdog",watchdog_node)
-    graph.add_node("parallel_scoring",parallel_scoring_model)
-    graph.add_node("action_gateway",action_gateway_node)
-    graph.add_edge("fallback",fallback_node)
+class OrchestratorState(TypedDict):
+##writes the agent input in this class
+    txn_id: str
+    cust_token : str
+    amount: float
+    timestamp : int
+    priority : int
+    bitmask: int 
+    features : dict
 
-    graph.set_entry_point("watchdog")
+    fraud_agent: Optional[float]
+    fraud_reason: Optional[float]
 
-    graph.add_conditional_edges(
-        "watchdog",
-        route_after_watchdog,
-        {
-            "continue":"parallel_scoring",
-            "kill":"fallback"
-        }
-    )
-    graph.add_edge("parallel_scoring","action_gateway")
-    graph.add_edge("action_gateway",END)
-    graph.add_edge("fallback",END)
+    sanctions_hit= Optional[bool]
+    sanctions_conf=Optional[float]
 
-    return graph.compile()
+    ring_detedted:Optional[bool]
+    ring_size:Optional[int]
+    ring_node:Optional[str]
 
-def route_after_watchdog(state:OrchetratorState)->str:
-    if state["killes"]:
-        return "kill"
-    return "continue"
+    ## final fraud score
+
+    final_tier:Optional[int]
+    final_action:Optional[str]
+    final_score:Optional[float]
+
+    loop_count:int
+    killed:bool
+    error:Optional[str]
