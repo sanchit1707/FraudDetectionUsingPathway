@@ -73,9 +73,4 @@ Once the containers are running, the background continuous tester will immediate
            }'
   ```
 
-## Where users can get help
-
-- **API Documentation**: Refer to the `/docs` endpoint on the Gateway (`http://localhost:8080/docs`) once running.
-- **Issues and Bug Reports**: Please open an issue on our [GitHub Issue Tracker](#).
-- **Community Support**: Join our [Discord Server](#) or check out the [Wiki](#) for architecture diagrams and deeper conceptual explanations.
 
