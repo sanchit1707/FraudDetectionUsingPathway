@@ -1,0 +1,245 @@
+
+# ============================================================================
+# FlashGuard — Pathway-Powered Agentic Gateway
+# Full multi-container orchestration
+#
+# Services:
+#   redis           - Shared state (event stream, idempotency, checkpoints)
+#   gateway         - Pathway pipeline (L0-L4) + LangGraph orchestrator
+#   bdh_watchdog    - BDH out-of-band microservice (reads pathway:events)
+#   agent6          - Final execution orchestrator (idempotent actions)
+#   a5_compliance_rag  - Compliance vector RAG (Pathway + sentence-transformers)
+#   a6b_drift_detector - ADWIN + HalfSpaceTrees drift detection (Pathway)
+#   a8_sar_drafter  - SAR narrative drafter (Pathway + LLM)
+#   a10_feedback_loop  - Online feedback learning (Pathway + River)
+#   test_runner     - Signal + BDH + chaos test suite
+#
+# Run:
+#   docker compose up --build
+#
+# Environment:
+#   Copy .env.example to .env and fill in GROQ_API_KEY
+# ============================================================================
+
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: flashguard_redis
+    environment:
+      - REDIS_ARGS=--appendonly yes
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── BDH Watchdog (separate container — out-of-band) ───────────────────────
+
+  bdh_watchdog:
+    build:
+      context: ./bdh_service
+      dockerfile: Dockerfile
+    container_name: flashguard_bdh
+    ports:
+      - "8090:8090"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Agent 6 — Execution Orchestrator ─────────────────────────────────────
+
+  agent6:
+    build:
+      context: ./layer4/agent6
+      dockerfile: Dockerfile
+    container_name: flashguard_agent6
+    ports:
+      - "8000:8000"
+      - "8001:8001"   # Prometheus metrics
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - KAFKA_BOOTSTRAP_SERVERS=  # empty = in-memory mode
+      - DATABASE_URL=             # empty = in-memory mode
+      - OTLP_ENDPOINT=            # empty = console exporter
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Gateway — Main Pathway Pipeline + LangGraph Orchestrator ─────────────
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: flashguard_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - AGENT6_URL=http://agent6:8000
+      - BDH_URL=http://bdh_watchdog:8090
+      - GATEWAY_PORT=8080
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-llama-3.3-70b-versatile}
+      - A5_URL=http://a5_compliance_rag:8011
+      - GATEWAY_URL=http://localhost:8080
+      # Pathway runs CSV demo mode inside Docker
+      - PATHWAY_MODE=demo
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      bdh_watchdog:
+        condition: service_healthy
+      agent6:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ── Async Side-Effect Agents ──────────────────────────────────────────────
+
+  a5_compliance_rag:
+    build: ./a5_compliance_rag
+    container_name: flashguard_a5
+    ports:
+      - "8021:8011"
+      - "8531:8511"   # sidecar: browser-facing CORS + GET /stats bridge
+    volumes:
+      - ./a5_compliance_rag/compliance_docs:/app/compliance_docs:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "-H", "Content-Type: application/json",
+             "-d", "{\"query\":\"test\"}", "http://localhost:8011"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+
+  a6b_drift_detector:
+    build: ./a6b_drift_detector
+    container_name: flashguard_a6b
+    ports:
+      - "8022:8012"
+      - "8532:8512"   # sidecar: browser-facing CORS + GET /stats bridge
+    restart: unless-stopped
+
+  a8_sar_drafter:
+    build: ./a8_sar_drafter
+    container_name: flashguard_a8
+    ports:
+      - "8023:8013"
+      - "8533:8513"   # sidecar: browser-facing CORS + GET /stats bridge
+    environment:
+      - RAG_ENDPOINT=http://a5_compliance_rag:8011
+      - LLM_MODEL=${LLM_MODEL:-llama-3.1-8b-instant}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    depends_on:
+      - a5_compliance_rag
+    restart: unless-stopped
+
+  a10_feedback_loop:
+    build: ./a10_feedback_loop
+    container_name: flashguard_a10
+    ports:
+      - "8024:8014"
+      - "8535:8515"   # sidecar: browser-facing CORS + GET /stats bridge
+    restart: unless-stopped
+
+  # ── Test Runner ───────────────────────────────────────────────────────────
+
+  test_runner:
+    build: ./test_runner
+    container_name: flashguard_tests
+    volumes:
+      - ./tests:/tests
+    environment:
+      - GATEWAY_URL=http://gateway:8080
+      - BDH_URL=http://bdh_watchdog:8090
+      - AGENT6_URL=http://agent6:8000
+      - A5_URL=http://a5_compliance_rag:8011
+      - A6B_URL=http://a6b_drift_detector:8012
+      - A8_URL=http://a8_sar_drafter:8013
+      - A10_URL=http://a10_feedback_loop:8014/feedback
+    depends_on:
+      gateway:
+        condition: service_healthy
+      bdh_watchdog:
+        condition: service_healthy
+      agent6:
+        condition: service_healthy
+      a5_compliance_rag:
+        condition: service_started
+      a6b_drift_detector:
+        condition: service_started
+      a8_sar_drafter:
+        condition: service_started
+      a10_feedback_loop:
+        condition: service_started
+    restart: "no"
+
+  lake_writer:
+    build: ./lake_writer
+    container_name: flashguard_lake_writer
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - LAKE_PATH=/app/data/lake
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: flashguard_dashboard
+    ports:
+      - "8500:8500"
+    restart: unless-stopped
+
+  continuous_tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.tester
+    container_name: flashguard_tester
+    command: ["--url", "http://gateway:8080/submit", "--interval", "10.0"]
+    depends_on:
+      gateway:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: flashguard_network

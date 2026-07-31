@@ -1,0 +1,126 @@
+Unified Fraud Detection UDF – Overview
+
+What it is
+
+A single Pathway UDF (compute_fraud_features) that replaces two
+previously separate modules — a Feature Engineering UDF and a Sanctions
+Screening Agent — and runs them in one pass per transaction event.
+
+------------------------------------------------------------------------
+
+Why it was combined
+
+Both original modules were @pw.udf functions operating on the same Kafka
+transaction stream. That meant every incoming event was being:
+
+1.  Deserialized by Pathway
+2.  Processed by Feature Engineering UDF
+3.  Serialized back
+4.  Deserialized again by the Sanctions Agent
+5.  Processed again
+6.  Serialized back out
+
+Merging them eliminates that redundancy — one deserialization, one
+processing pass, one output record per event.
+
+------------------------------------------------------------------------
+
+What runs inside the single UDF
+
+Stage A — Feature Engineering
+
+Seven signals are computed for every transaction:
+
+-   velocity_score — Counts how many transactions the user made in the
+    last hour versus a maximum threshold. High velocity indicates
+    suspicious behavior.
+-   amount_zscore — Measures how statistically abnormal the transaction
+    amount is compared to the user’s own history using a rolling list of
+    up to 500 previous amounts.
+-   geo_jump_km — Computes the Haversine distance between the previous
+    and current locations. Large jumps (e.g. >500 km) indicate
+    impossible travel.
+-   is_new_device — Checks whether the device_id has been seen before
+    for this user.
+-   merchant_seq_anomaly — Flags repeated appearances of the same
+    merchant in the last five transactions, a common card-testing
+    pattern.
+-   round_amount_flag — Flags transactions with zero cents
+    (e.g. 500.00), often associated with testing or structuring.
+-   time_of_day_risk — Assigns a risk weight based on transaction time.
+    Daytime (6 AM–10 PM) receives a lower weight, nighttime receives a
+    higher one.
+
+Stage B — Sanctions Screening
+
+Two-stage lookup:
+
+1.  FlashText exact matching
+    -   O(1) lookup against the OFAC SDN list loaded into a
+        KeywordProcessor.
+    -   Immediate hit if the counterparty name matches exactly.
+2.  RapidFuzz fuzzy matching
+    -   Runs only if exact matching fails.
+    -   Uses token_sort_ratio.
+    -   Scores >= 85 are considered sanctions matches.
+
+The sanctions list is monitored continuously. Pathway watches
+sanctions.csv in streaming mode and automatically rebuilds the
+KeywordProcessor whenever the file changes, without requiring a restart.
+
+Stage C — Composite Fraud Score
+
+A weighted sum of all seven fraud features is computed.
+
+Decision logic:
+
+-   Sanctions hit → Score forced to 1.0 and Tier 1.
+-   Score >= 0.75 → Tier 1 (Block)
+-   Score between 0.45 and 0.75 → Tier 2 (Review)
+-   Score < 0.45 → Tier 3 (Pass)
+
+------------------------------------------------------------------------
+
+State Management
+
+A UserState dataclass is maintained for every user_id inside an
+in-memory Python dictionary (_user_states).
+
+Each state stores:
+
+-   Rolling transaction amounts (maximum 500)
+-   Rolling timestamps for velocity calculations
+-   Last known latitude and longitude
+-   Known device IDs
+-   Recent merchant sequence (last 20 merchants)
+
+The state is updated after every transaction, allowing future
+transactions to be evaluated using accumulated user history.
+
+------------------------------------------------------------------------
+
+Output
+
+The UDF returns a single dictionary containing:
+
+-   All engineered fraud features
+-   Sanctions screening result
+-   Composite fraud score
+-   Final fraud tier
+
+Pathway then routes the transaction into one of three Kafka topics:
+
+-   fraud.tier1.block — Automatically blocked transactions
+-   fraud.tier2.review — Transactions requiring manual review
+-   fraud.tier3.pass — Approved transactions
+
+------------------------------------------------------------------------
+
+Current Limitation
+
+The user state is stored entirely in memory.
+
+If the service restarts, all historical user information is lost.
+
+For a production deployment, _user_states should be backed by a
+persistent state store such as Redis or RocksDB.

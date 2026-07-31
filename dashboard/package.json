@@ -1,0 +1,24 @@
+{
+  "name": "flashguard-dashboard",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 8500 --host",
+    "build": "vite build",
+    "preview": "vite preview --port 8500"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.4",
+    "lucide-react": "^0.439.0",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  }
+}

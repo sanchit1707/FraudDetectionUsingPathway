@@ -1,0 +1,24 @@
+# Gateway service requirements
+# (pathway is already installed in base image pathwaycom/pathway:latest)
+
+fastapi
+uvicorn[standard]
+redis
+langgraph>=0.3.0
+langchain-core>=0.3.0
+pydantic
+requests
+pathway[all]
+httpx
+tenacity
+
+# ML (lighter alternatives — no CUDA)
+scikit-learn
+xgboost
+river
+pandas
+numpy
+pickle5; python_version < "3.8"
+
+# LiteLLM for LLM adapter
+litellm

@@ -1,0 +1,4 @@
+2026-06-21 20:48:16,111 {"tx_id": "TX003", "account_id": "AC003", "amount": 2000, "shed_reason": "backpressure | rate=1202/s"}
+2026-06-21 20:48:16,113 {"tx_id": "TX004", "account_id": "AC004", "amount": 500, "shed_reason": "backpressure | rate=1202/s"}
+2026-06-21 20:48:16,115 {"tx_id": "TX005", "account_id": "AC005", "amount": 300, "shed_reason": "backpressure | rate=1202/s"}
+2026-06-21 20:48:16,115 {"tx_id": "TX006", "account_id": "AC006", "amount": 150, "shed_reason": "backpressure | rate=1202/s"}

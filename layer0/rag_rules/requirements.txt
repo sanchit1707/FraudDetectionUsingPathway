@@ -1,0 +1,9 @@
+pathway
+pathway[xpacks]
+unstructured[pdf]
+sentence-transformers
+torch
+pdf2image
+pytesseract
+beautifulsoup4
+requests

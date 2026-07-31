@@ -1,0 +1,3 @@
+pathway==0.31.1
+river
+numpy

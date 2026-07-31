@@ -1,0 +1,4 @@
+pathway==0.31.1
+requests
+openai
+litellm
